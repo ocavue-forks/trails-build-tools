@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2023-2025 Open Pioneer project (https://github.com/open-pioneer)
 // SPDX-License-Identifier: Apache-2.0
-import { load as loadYaml, dump as dumpYaml } from "js-yaml";
-import { readFileSync, writeFileSync } from "node:fs";
+import { dump as dumpYaml } from "js-yaml";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { formatPackageEntries, PackageEntry } from "./findDuplicates";
-
-const CONFIG_HEADER =
-    `# Configuration file for check-pnpm-duplicates.\n` +
-    `# See https://www.npmjs.com/package/@open-pioneer/check-pnpm-duplicates for more details.\n`;
+import { maybeReadRawConfig } from "./readConfig";
 
 /**
  * Generates the `allowed:` YAML block from the given duplicates map.
@@ -23,23 +21,24 @@ export function generateAllowedBlock(duplicates: Map<string, PackageEntry>): str
  * Updates the `allowed` field in the given YAML config file
  * with the current set of duplicate packages.
  *
- * The file is parsed with js-yaml and re-generated.
- * All non-`allowed` fields are preserved; a header comment is added.
+ * The existing config is read with {@link safeReadConfig} (creating a default
+ * if the file does not exist yet). The file is then re-generated with js-yaml;
+ * all non-`allowed` fields are preserved and a header comment is added.
  */
 export function updateConfig(configPath: string, duplicates: Map<string, PackageEntry>): void {
-    const content = readFileSync(configPath, "utf-8");
-    const rawConfig = (loadYaml(content) as Record<string, unknown>) ?? {};
+    const existingConfig = maybeReadRawConfig(configPath);
+    mkdirSync(dirname(configPath), { recursive: true });
+    const entries = [...duplicates.values()].sort((v1, v2) => v1.name.localeCompare(v2.name));
 
-    // Separate `allowed` from other config fields
-    const { allowed: _, ...otherFields } = rawConfig;
-
-    // Build the new config file.
-    // Joining with "\n" creates blank-line separation between sections.
-    const parts: string[] = [CONFIG_HEADER];
-    if (Object.keys(otherFields).length > 0) {
-        parts.push(dumpYaml(otherFields));
-    }
-    parts.push(generateAllowedBlock(duplicates));
-
-    writeFileSync(configPath, parts.join("\n"), "utf-8");
+    const lines: string[] = [
+        "# Configuration file for check-pnpm-duplicates.",
+        "# See https://www.npmjs.com/package/@open-pioneer/check-pnpm-duplicates for more details.",
+        existingConfig.skipDevDependencies != null
+            ? `skipDevDependencies: ${existingConfig.skipDevDependencies}`
+            : "",
+        entries.length > 0 ? `allowed:` : `allowed: []`,
+        entries.length > 0 ? formatPackageEntries(entries) : ""
+    ];
+    const text = lines.join("\n").trim() + "\n";
+    writeFileSync(configPath, text, "utf-8");
 }

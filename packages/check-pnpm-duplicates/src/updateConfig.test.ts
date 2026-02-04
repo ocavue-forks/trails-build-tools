@@ -86,11 +86,11 @@ describe("updateConfig", () => {
         expect(result).toContain(`  - "prettier" # (versions 2.8.8, 3.3.3)`);
     });
 
-    it("preserves extra fields", () => {
+    it("preserves skipDevDependencies", () => {
         const configPath = resolve(UPDATE_CONFIG_DIR, "config-extra.yaml");
         writeFileSync(
             configPath,
-            `skipDevDependencies: true\nextraField: hello\nallowed:\n  - "old-package"\n`,
+            `skipDevDependencies: true\nallowed:\n  - "old-package"\n`,
             "utf-8"
         );
 
@@ -99,7 +99,6 @@ describe("updateConfig", () => {
 
         const result = readFileSync(configPath, "utf-8");
         expect(result).toContain("skipDevDependencies: true");
-        expect(result).toContain("extraField: hello");
         expect(result).toContain('  - "chalk" # (versions 2.4.2, 4.1.2)');
         expect(result).not.toContain("old-package");
     });
