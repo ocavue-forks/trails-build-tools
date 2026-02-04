@@ -61,7 +61,7 @@ function typedKeys(object) {
 }
 
 // package.json
-var version = "0.2.6";
+var version = "0.2.7-beta.1";
 
 // src/readConfig.ts
 import { load as loadYaml } from "js-yaml";
